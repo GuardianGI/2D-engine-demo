@@ -107,7 +107,7 @@ main = function (body) {
 	fps.setAttribute("style", 'position: absolute; top:0; right:0;');
 	document.body.appendChild(fps);
 	
-	var mark = function (coord) {
+	var mark = function (color, coord) {
 			var context = ctx,
 				drawLine = function (coordA, coordB) {
 				context.beginPath();
@@ -116,9 +116,10 @@ main = function (body) {
 				context.closePath();
 				context.stroke();
 			}
-			context.strokeStyle = '#f00';
+			context.strokeStyle = color;
 			drawLine([coord[0] - 5, coord[1] - 5], [coord[0] + 5, coord[1] + 5]);
 			drawLine([coord[0] + 5, coord[1] - 5], [coord[0] - 5, coord[1] + 5]);
+			//alert(color + '\n' + coord);
 		},
 		tileSize = [15, 15],
 		tiles = [null],
@@ -144,8 +145,6 @@ main = function (body) {
 					if (undefined === drawHeight) {
 						drawHeight = (drawWidth / tileSize[0]) * tileSize[1];
 					}
-					/*alert(tileCoordinates[0] * tileSize[0]+'\n'+
-						tileCoordinates[1] * tileSize[1]);*/
 					sprite(
 						bgCtx,
 						tileCoordinates[0] * tileSize[0],
@@ -160,7 +159,7 @@ main = function (body) {
 		})(),
 		player = (function () {
 			var position = [100, 100],
-				speed = 0.8/*px/msec*/,
+				speed = 0.6/*px/msec*/,
 				velocity = [0, 0],
 				moving = [0, 0, 0, 0, speed],//up, right, down, left, sprint modifier.
 				playerSprite = [tileSize[0] * 1, tileSize[1] * 2];
@@ -213,36 +212,38 @@ main = function (body) {
 				},
 				'action' : function () {},
 				'draw' : function (lapsedMsec) {
-					var targetPosition = position,
+					var targetPosition = [position[0], position[1]],
 						targetTile,
 						getCollisionDirection = function () {
 							var colissionVector = [0, 0];
 							for (var x = 0; x <= playerSprite[0] / tileSize[0]; x += 1) {
 								for (var y = 0; y <= playerSprite[1] / tileSize[1]; y += 1) {
-									mark([
-										(targetPosition[0]) + x * tileSize[0],
-										(targetPosition[1]) + y * tileSize[1]]);
-									var targetTile = tiles
-										[(targetPosition[1] - targetPosition[1] % tileSize[0]) / tileSize[0] + y]
-										[(targetPosition[0] - targetPosition[0] % tileSize[1]) / tileSize[1] + x];
-									if (null != targetTile || undefined != targetTile) {
+									var targetTile;
+									//alert(position + '\n' + targetPosition);
+									if (0 === colissionVector[0]) {
 										targetTile = tiles
-											[(targetPosition[1] - targetPosition[1] % tileSize[0]) / tileSize[0] + y]
-											[(position[0] - position[0] % tileSize[1]) / tileSize[1] + x];
-										if (null != targetTile || undefined != targetTile) {
+											[(position[1] - position[1] % tileSize[1]) / tileSize[1] + y]
+											[(targetPosition[0] - targetPosition[0] % tileSize[0]) / tileSize[0] + x];
+										if (null != targetTile) {
 											if (velocity[0] < 0) {
+												mark('#000', [(position[0]) + x * tileSize[0], (targetPosition[1]) + y * tileSize[1]]);
 												colissionVector[0] = 1;
-											} else {
+											} else if (velocity[0] > 0) {
+												mark('#0f0', [(position[0]) + x * tileSize[0], (targetPosition[1]) + y * tileSize[1]]);
 												colissionVector[0] = -1;
 											}
 										}
+									}
+									if (0 === colissionVector[1]) {
 										targetTile = tiles
-											[(position[1] - position[1] % tileSize[0]) / tileSize[0] + y]
-											[(targetPosition[0] - targetPosition[0] % tileSize[1]) / tileSize[1] + x];
-										if (null != targetTile || undefined != targetTile) {
+											[(targetPosition[1] - targetPosition[1] % tileSize[1]) / tileSize[1] + y]
+											[(position[0] - position[0] % tileSize[0]) / tileSize[0] + x];
+										if (null != targetTile) {
 											if (velocity[1] < 0) {
+												mark('#00f', [(targetPosition[0]) + x * tileSize[0], (position[1]) + y * tileSize[1]]);
 												colissionVector[1] = 1;
-											} else {
+											} else if (velocity[1] > 0) {
+												mark('#f00', [(targetPosition[0]) + x * tileSize[0], (position[1]) + y * tileSize[1]]);
 												colissionVector[1] = -1;
 											}
 										}
@@ -251,36 +252,42 @@ main = function (body) {
 							}
 							return colissionVector;
 						};
-					velocity[0] = moving[1] + moving[3] * -1;
+					velocity[0] = (moving[1] + moving[3] * -1) * moving[4];
 					//velocity[1] = moving[2] + moving[0] * -1;
 					
 					if (0 !== velocity[0] && 0 !== velocity[1]) {
-						velocity[0] *= 0.707 * moving[4];
+						velocity[0] *= 0.707;
 						//velocity[1] += 0.707 * lapsedMsec;
 					}
-					velocity[1] += 0.003 * lapsedMsec;//gravity
-					
-					for (var i = 0; i < 2; i += 1) {
-						targetPosition[i] += velocity[i] * lapsedMsec * speed;
-					}
-					var collisionDirection = getCollisionDirection();
-					if (0 != collisionDirection[0] || 0 != collisionDirection[1]) {
-						do {
-							for (var i = 0; i < 2; i += 1) {
-								if (velocity[i] != 0) {
-									targetPosition[i] += collisionDirection[i];
-								}
-								//alert('asdjusting\n'+i);
-							}
-							collisionDirection = getCollisionDirection();
-						} while (0 != collisionDirection[0] || 0 != collisionDirection[1]);
-						this.jump.land();
+					var step = 64;//msec parsed at a time
+					var lapsedMsecPart = lapsedMsec % step;
+					lapsedMsec -= lapsedMsecPart;
+					do {
+						velocity[1] += 0.003 * lapsedMsecPart;//gravity
+						
 						for (var i = 0; i < 2; i += 1) {
-							velocity[i] = 0;
-							//targetPosition[i] -= targetPosition[i] % tileSize[i];
+							targetPosition[i] += velocity[i] * lapsedMsecPart * speed;
 						}
-					}
-					position = targetPosition;
+						var collisionDirection = getCollisionDirection();
+						if (0 != collisionDirection[0] || 0 != collisionDirection[1]) {
+							if (collisionDirection[1] < 0) {
+								this.jump.land();
+							}
+							do {
+								for (var i = 0; i < 2; i += 1) {
+									if (velocity[i] != 0) {
+										targetPosition[i] += collisionDirection[i] * ((velocity[i] * velocity[i]) / 4);
+									}
+								}
+								collisionDirection = getCollisionDirection();
+							} while (0 != collisionDirection[0] || 0 != collisionDirection[1]);
+							
+							velocity[1] = 0;
+						}
+						lapsedMsecPart = step;
+						lapsedMsec -= lapsedMsecPart;
+					} while (lapsedMsec > 0);
+					position = [targetPosition[0], targetPosition[1]];
 					sprite(ctx, 0, tileSize[1], playerSprite[0], playerSprite[1], position);
 				}
 			};
