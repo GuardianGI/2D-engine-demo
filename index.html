@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Game</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<script type="text/javascript" src="2DPhysics.js"></script>
+		<script type="text/javascript" src="general.js"></script>
+		<style type="text/css">
+			html, body {
+				margin: 0;
+				padding: 0;
+			}
+			body {
+				background-image: url('BG.png');
+			}
+		</style>
+	</head>
+	<body onload="main(this);">
+		<img id="sprite" src="data:image/png;base64,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"
+			style="display: none;" />
+	
+	</body>
+</html>
