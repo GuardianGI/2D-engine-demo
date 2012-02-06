@@ -1,15 +1,23 @@
+function addEvent(obj, type, fn) {
+	/*src: http://ejohn.org/projects/flexible-javascript-events/
+	had a little rewrite myself.
+
+	safely add and remove events in just about all browsers (IE 5+)*/
+	if (obj.addEventListener) {
+		obj.addEventListener(type, fn, false);
+	} else if (obj.attachEvent) {
+		obj['e'+type+fn] = fn;
+		obj[type+fn] = function() {
+			obj['e'+type+fn](window.event);
+		}
+		obj.attachEvent('on'+type, obj[type+fn]);
+	} else {
+		obj['on'+type] = obj['e'+type+fn];
+	}
+}
+
 main = function (body) {
     'use strict';
-	/*var test = {
-		foo : 'foo',
-		bar : function () {
-			var baz = function () {
-				alert(test.foo)
-			};
-			baz();
-		}
-	};
-	test.bar();*/
 	var keyPress = (function () {
 		var keysDown = [], keyEvents = [], keyUpEvents = [],
 		mouseBtnsDown = [], mouseEvents = [], mouseUpEvents = [],
